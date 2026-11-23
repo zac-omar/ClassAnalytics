@@ -1,40 +1,54 @@
-# Apparition Meter
+# Class Analytics
 
-A small window for **Azeroth Survivors** that counts your **Shadowy Apparitions** procs (the free Mind Blasts) and shows how many you get per second, live.
+A small window for **Azeroth Survivors** that shows your **procs per second**, live. Every talent, armor set, amulet, item and jewel that strikes on its own gets a line: how many times a second it goes off, how many hits it lands, and its share of your damage.
+
+For priests there's more: **Shadowy Apparitions** gets a bar that fills toward its limit of 2 a second, with your Shadow Word: Pain ticks per second beside it.
+
+*Class Analytics was called Apparition Meter until 0.2.0.*
 
 ## Install
 
-1. Download **ApparitionMeter-*version*.zip** from the [latest release](https://github.com/zac-omar/ApparitionMeter/releases/latest).
-2. Unzip it into your game's `benilla-config\AddOns\` folder. It holds the `ApparitionMeter` folder, ready to go. You should end up with:
+1. Download **ClassAnalytics-*version*.zip** from the [latest release](https://github.com/zac-omar/ClassAnalytics/releases/latest).
+2. Unzip it into your game's `benilla-config\AddOns\` folder. It holds the `ClassAnalytics` folder, ready to go. You should end up with:
    ```
-   <game folder>\benilla-config\AddOns\ApparitionMeter\ApparitionMeter.toc
+   <game folder>\benilla-config\AddOns\ClassAnalytics\ClassAnalytics.toc
    ```
 3. Start a run. If the addon isn't loaded, enable it on the AddOns screen at character select.
 
-To update, delete the old `ApparitionMeter` folder and unzip the new release in its place. Your settings are kept. Using **Code → Download ZIP** instead? That unpacks as `ApparitionMeter-main`: rename the folder to `ApparitionMeter`.
+To update, delete the old `ClassAnalytics` folder and unzip the new release in its place. Your settings are kept. Using **Code → Download ZIP** instead? That unpacks as `ClassAnalytics-main`: rename the folder to `ClassAnalytics`.
+
+Coming from Apparition Meter? Delete the old `ApparitionMeter` folder.
 
 ## What it shows
 
-- **The big number:** procs per second over the last 10 seconds. The bar under it fills toward 2 a second, the most Shadowy Apparitions can give.
-- **Last 60 s** and **this run:** the same rate over longer stretches, and how many procs you've had this run.
-- **Shadow Word: Pain ticks per second:** every tick has the chance to set off an apparition, so this is what drives the rate.
+| Column | What it means |
+|---|---|
+| **Source** | The talent, set, amulet or item, as the damage meter names it |
+| **procs/s** | How many times a second it went off, over the last 10 seconds |
+| **hits/s** | How many hits it landed a second. A proc that strikes several enemies is one proc and several hits |
+| **dmg** | Its share of your damage, from the damage meter |
 
-Paused time (level-up choices, menus) doesn't count, so it doesn't drag the rate down. The window shows on priests, or once it sees a proc.
+- **The most active sources come first.** A source that only does damage over time (a burn or a bleed) shows its ticks a second instead.
+- **Your own spells aren't listed;** `/ca own` adds them.
+- **The bottom line** counts your procs this run.
+- **Paused time** (level-up choices, menus) doesn't count, so it doesn't drag the rates down.
 
 ## Commands
 
 | Command | What it does |
 |---|---|
-| `/apm show`, `/apm hide` | Show or hide the window |
-| `/apm lock`, `/apm unlock` | Lock it in place, or let it be dragged |
-| `/apm center` | Put it back in the middle of the screen |
-| `/apm reset` | Start the count again |
-| `/apm window 30` | Measure the big number over the last 30 seconds (2 to 60) |
-| `/apm debug` | Show how your Mind Blast hits are credited, for bug reports |
+| `/ca show`, `/ca hide` | Show or hide the window |
+| `/ca lock`, `/ca unlock` | Lock it in place, or let it be dragged |
+| `/ca center` | Put it back in the middle of the screen |
+| `/ca reset` | Start the count again |
+| `/ca window 30` | Measure the rates over the last 30 seconds (2 to 60) |
+| `/ca rows 12` | Show up to 12 sources (1 to 20) |
+| `/ca own` | Also list your own spells |
+| `/ca debug` | Show how your recent hits were credited, for bug reports |
 
 ## How it counts
 
-- **A proc** is a hit credited to Shadowy Apparitions. If one free Mind Blast hits several enemies, it still counts once.
-- **The 2-a-second limit:** after each proc, nothing more can come for half a second. That's why the rate can only get close to 2 a second, never past it.
+- **A proc:** a source's hits that land together count as one proc. If two procs from the same source go off at the very same moment (two enemies exploding at once), they count as one.
+- **Shadowy Apparitions** can go off at most once every half second, so the rate can get close to 2 a second but never past it.
 
-If the count stays at 0 while apparitions are clearly firing, type `/apm debug` and include what it prints when you report it.
+If a line you expect never shows up, type `/ca debug` and include what it prints when you report it.

@@ -1,0 +1,6 @@
+## Interface: 11200
+## Title: Class Analytics
+## Notes: Your procs per second, live: every talent, set, amulet and item proc, with its share of your damage. Type /ca for the commands.
+## Version: 0.2.0
+## SavedVariables: ClassAnalyticsDB
+ClassAnalytics.lua

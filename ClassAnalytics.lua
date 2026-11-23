@@ -4,15 +4,14 @@
 -- its limit of 2 a second, with your Shadow Word: Pain ticks beside it.
 -- Written for Lua 5.0 (WoW 1.12): no #, no %, no string.match, no select.
 
-local VERSION = "0.2.0";
+local VERSION = "0.2.1";
 local KEEP = 60;        -- seconds of history kept for the windows
 local POLL = 0.1;       -- how often the feed is read, in real seconds
 local MERGE = 0.1;      -- one source's hits closer than this are one proc
 -- sources whose procs are spaced out: hits closer than this are still the same proc
-local MERGES = { ["talent:shadowyapparitions"] = 0.3 };
--- sources that can't go past a number of procs a second
-local CAPS = { ["talent:shadowyapparitions"] = 2, ["amulet:firelord"] = 4 };
+local MERGES = { ["talent:shadowyapparitions"] = 0.3, ["meter:shadowyapparitions"] = 0.3 };
 local APPARITIONS = "talent:shadowyapparitions";
+local APPARITIONS_CAP = 2;   -- Shadowy Apparitions can't go past 2 a second
 local ROW_H = 13;
 
 local DEFAULTS = { window = 10, rows = 8, own = false, locked = false, hidden = false,
@@ -23,6 +22,7 @@ local state = {
 	src = {}, list = {},  -- sources by id, and in the order they were first seen
 	pain = {},            -- { time, count } of Shadow Word: Pain ticks
 	painBatch = 0,
+	procLines = {},       -- the damage meter's lines with the proc tag, by name
 	startedAt = nil, run = nil,
 	cursor = nil, primed = false, nextPoll = 0, status = "waiting for the feed",
 	keys = {},            -- for /ca debug: how recent hits were credited
@@ -92,6 +92,109 @@ local function Reset(now)
 	state.startedAt = now;
 end
 
+-- The meter's description of each source: its name, the talent or item behind it, and where a
+-- free cast came from (originSourceKeys: a free Mind Blast's is Shadowy Apparitions). Its own
+-- copy is read when it has one; while it doesn't, it is asked for one at most every 5 seconds.
+local meter = { at = -100, asks = 0 };
+
+local function Sources(real)
+	local st = AZS_ML and AZS_ML.st;
+	if ( type(st) == "table" and type(st.sources) == "table" ) then
+		meter.how = "its copy";
+		return st.sources;
+	end
+	if ( real - meter.at >= 5 and type(AZS_GetMeterContext) == "function" and type(AZS_GetMeterLoadout) == "function" ) then
+		meter.at, meter.asks = real, meter.asks + 1;
+		local ok, ctx = pcall(AZS_GetMeterContext);
+		if ( ok and type(ctx) == "table" and ctx.runId ) then
+			local ok2, l = pcall(AZS_GetMeterLoadout, { apiVersion = 1, runId = ctx.runId });
+			if ( ok2 and type(l) == "table" and type(l.sources) == "table" ) then
+				meter.sources, meter.how = l.sources, "asking it";
+			end
+		end
+	end
+	return meter.sources;
+end
+
+-- The first talent, set, amulet, item or jewel in a list of source keys (or in one key).
+local function FirstOrigin(list, sources)
+	if ( type(list) == "string" ) then
+		list = { list };
+	end
+	if ( type(list) ~= "table" ) then
+		return nil;
+	end
+	for i = 1, table.getn(list) do
+		local k2, b2 = Parse(list[i]);
+		if ( k2 ~= "own" ) then
+			local od = type(sources) == "table" and sources[list[i]];
+			return k2, b2, type(od) == "table" and od.name or nil;
+		end
+	end
+	return nil;
+end
+
+local ORIGIN_FIELDS = { "originSourceKeys", "meterOriginKeys", "meterOrigins", "originKeys", "origins" };
+
+-- What a hit's source resolves to: its own kind and base, or, for a spell cast by a talent, set
+-- or item (an origin, carried on the hit or in the meter's descriptor), that origin's. The last
+-- value back is the descriptor, for /ca debug.
+local function Resolve(ev, sources)
+	local key = ev.meterSourceKey;
+	local kind, base = Parse(key);
+	local d = type(sources) == "table" and type(key) == "string" and sources[key];
+	if ( kind ~= "own" ) then
+		return kind, base, nil, d;
+	end
+	for i = 1, table.getn(ORIGIN_FIELDS) do
+		local k2, b2, n2 = FirstOrigin(ev[ORIGIN_FIELDS[i]], sources);
+		if ( k2 ) then
+			return k2, b2, n2, d;
+		end
+	end
+	if ( type(d) ~= "table" ) then
+		return kind, base, nil, d;
+	end
+	local k3, b3, n3 = FirstOrigin(d.originSourceKeys, sources);
+	if ( k3 ) then
+		return k3, b3, n3, d;
+	end
+	-- a source that is a talent's and not one of your spells
+	if ( d.talentKey and d.talentKey ~= "" and not ( d.abilityKey and d.abilityKey ~= "" ) ) then
+		return "talent", d.talentKey, d.name, d;
+	end
+	return "own", key, nil, d;
+end
+
+-- Resolve, then: a hit the damage meter credits to one of its proc lines ("Shadowy Apparitions"
+-- with its proc tag) is that proc's, whatever its key looks like.
+local function ResolveAll(ev, sources)
+	local kind, base, name, d = Resolve(ev, sources);
+	local line = ev.meterSource;
+	if ( kind == "own" and type(line) == "string" and state.procLines[Norm(line)] ) then
+		return "meter", line, line, d;
+	end
+	return kind, base, name, d;
+end
+
+-- one hit's fields, for /ca debug
+local function Fields(t)
+	local parts = {};
+	for k, v in pairs(t) do
+		if ( type(v) == "table" ) then
+			local inner = {};
+			for i = 1, math.min(table.getn(v), 4) do
+				table.insert(inner, tostring(v[i]));
+			end
+			table.insert(parts, tostring(k) .. "={" .. table.concat(inner, ",") .. "}");
+		elseif ( type(v) ~= "function" ) then
+			table.insert(parts, tostring(k) .. "=" .. tostring(v));
+		end
+	end
+	table.sort(parts);
+	return table.concat(parts, " ");
+end
+
 local function Source(id, name, kind)
 	local s = state.src[id];
 	if ( not s ) then
@@ -103,21 +206,24 @@ local function Source(id, name, kind)
 	return s;
 end
 
-local function NoteKey(line)
+-- the recent hits' sources for /ca debug, one entry per source key: how it was read, the meter's
+-- descriptor of it and one hit's own fields
+local function NoteKey(key, line, ev, d)
 	local keys = state.keys;
 	for i = 1, table.getn(keys) do
-		if ( keys[i] == line ) then
+		if ( keys[i].key == key ) then
+			keys[i].line = line;
 			return;
 		end
 	end
-	if ( table.getn(keys) >= 12 ) then
+	if ( table.getn(keys) >= 10 ) then
 		table.remove(keys, 1);
 	end
-	table.insert(keys, line);
+	table.insert(keys, { key = key, line = line, ev = Fields(ev), d = type(d) == "table" and Fields(d) or "none" });
 end
 
--- One event from the feed, at run time `t`.
-local function Take(ev, t)
+-- One event from the feed, at run time `t`; `sources` the meter's descriptors.
+local function Take(ev, t, sources)
 	if ( type(ev) ~= "table" or ev.kind == "miss" ) then
 		return;
 	end
@@ -126,9 +232,9 @@ local function Take(ev, t)
 	if ( periodic and Has(ability, "shadowwordpain") ) then
 		state.painBatch = state.painBatch + 1;
 	end
-	local kind, base = Parse(ev.meterSourceKey);
-	NoteKey(kind .. ":" .. tostring(base) .. " | " .. tostring(ev.meterSource) .. " | "
-		.. tostring(ev.abilityName) .. (periodic and " | tick" or ""));
+	local kind, base, originName, d = ResolveAll(ev, sources);
+	NoteKey(tostring(ev.meterSourceKey), kind .. ":" .. tostring(base) .. " | " .. tostring(ev.meterSource) .. " | "
+		.. tostring(ev.abilityName) .. (periodic and " | tick" or ""), ev, d);
 	local id, name;
 	if ( kind == "own" ) then
 		if ( not db.own ) then
@@ -137,7 +243,8 @@ local function Take(ev, t)
 		id, name = "own:" .. ability, ev.abilityName;
 	else
 		id = kind .. ":" .. Norm(base);
-		name = ev.meterSource;
+		-- a free cast is named for what cast it (Shadowy Apparitions), not for the spell (Mind Blast)
+		name = originName or ev.meterSource;
 		if ( type(name) ~= "string" or name == "" ) then
 			name = string.gsub(tostring(base), "_", " ");
 		end
@@ -176,6 +283,17 @@ local function Poll(real)
 		Reset(now);
 	end
 	state.painBatch = 0;
+	local sources = Sources(real);
+	-- the meter's proc lines, by name
+	state.procLines = {};
+	if ( type(AZS_METER) == "table" ) then
+		for i = 1, table.getn(AZS_METER) do
+			local line = AZS_METER[i];
+			if ( type(line) == "table" and line.name and ( Truthy(line.proc) or line.proc == "1" ) ) then
+				state.procLines[Norm(line.name)] = true;
+			end
+		end
+	end
 	-- the feed hands out at most 256 at a time: read until it has nothing more
 	for pass = 1, 20 do
 		local res, err = AZS_GetCombatTextEvents(state.cursor, 256);
@@ -204,7 +322,7 @@ local function Poll(real)
 				if ( shown and clock and clock - shown >= 0 and clock - shown < 5 ) then
 					t = now - (clock - shown);
 				end
-				Take(ev, t);
+				Take(ev, t, sources);
 			end
 		end
 		if ( n < 256 ) then
@@ -378,21 +496,21 @@ end
 
 -- the Shadowy Apparitions block, from height `y`; returns the height below it
 local function DrawFocus(now, w, y)
-	local app = state.src[APPARITIONS];
+	local app = state.src[APPARITIONS] or state.src["meter:shadowyapparitions"];
 	if ( not app and PlayerClass() ~= "PRIEST" ) then
 		ui.focus:Hide(); ui.focusRate:Hide(); ui.barBack:Hide(); ui.bar:Hide(); ui.pain:Hide();
 		return y;
 	end
 	local r = app and Rate(app.procs, now, w);
 	ui.focus:SetText("Shadowy Apparitions");
-	ui.focusRate:SetText(Fmt(r) .. " /s of " .. CAPS[APPARITIONS]);
+	ui.focusRate:SetText(Fmt(r) .. " /s of " .. APPARITIONS_CAP);
 	Put(ui.focus, "TOPLEFT", 8, y);
 	Put(ui.focusRate, "TOPRIGHT", 292, y + 2);
 	ui.barBack:ClearAllPoints();
 	ui.barBack:SetPoint("TOPLEFT", frame, "TOPLEFT", 8, y - 14);
 	ui.bar:ClearAllPoints();
 	ui.bar:SetPoint("TOPLEFT", ui.barBack, "TOPLEFT", 0, 0);
-	local fill = (r or 0) / CAPS[APPARITIONS];
+	local fill = (r or 0) / APPARITIONS_CAP;
 	if ( fill > 1 ) then
 		fill = 1;
 	end
@@ -602,13 +720,17 @@ SlashCmdList["CLASSANALYTICS"] = function(msg)
 		Place();
 	elseif ( cmd == "debug" ) then
 		Print("version " .. VERSION .. ", " .. state.status .. ", run " .. tostring(state.run)
-			.. ", sources " .. table.getn(state.list) .. ".");
+			.. ", sources " .. table.getn(state.list) .. ", meter " .. tostring(meter.how or "not read")
+			.. " (asked " .. meter.asks .. "x).");
 		if ( table.getn(state.keys) == 0 ) then
 			Print("no hits seen yet.");
 		else
-			Print("recent hits (source | meter line | ability):");
+			Print("recent hits: key -> read as | meter line | ability, then the meter's entry and one hit's fields:");
 			for i = 1, table.getn(state.keys) do
-				DEFAULT_CHAT_FRAME:AddMessage("  " .. state.keys[i]);
+				local e = state.keys[i];
+				DEFAULT_CHAT_FRAME:AddMessage("|cffffd100" .. e.key .. "|r -> " .. e.line);
+				DEFAULT_CHAT_FRAME:AddMessage("   meter: " .. e.d);
+				DEFAULT_CHAT_FRAME:AddMessage("   hit: " .. e.ev);
 			end
 		end
 	else

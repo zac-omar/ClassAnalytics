@@ -11,14 +11,19 @@ local MERGE = 0.1;      -- one source's hits closer than this are one proc
 local ROW_H = 13;
 
 -- Each class's block. proc: a talent that goes off at most `cap` times a second (its hits closer
--- than 0.3 sec are one proc); dot: the damage-over-time spell whose ticks are shown. A class
--- without a capped proc shows its busiest proc instead.
+-- than 0.3 sec are one proc), with its bar's color (r, g, b); dot: the damage-over-time spell
+-- whose ticks are shown. A class without a capped proc shows its busiest proc instead.
 local FOCUS = {
-	priest = { proc = "shadowy_apparitions", name = "Shadowy Apparitions", cap = 2, dot = "Shadow Word: Pain" },
-	warlock = { proc = "nightfall", name = "Nightfall", cap = 2, dot = "Corruption" },
-	paladin = { proc = "art_of_war", name = "The Art of War", cap = 1 },
-	hunter = { proc = "rapid_fire", name = "Rapid Fire", cap = 2, dot = "Serpent Sting" },
-	mage = { proc = "hot_streak", name = "Hot Streak", cap = 2, dot = "Ignite" },
+	priest = { proc = "shadowy_apparitions", name = "Shadowy Apparitions", cap = 2, dot = "Shadow Word: Pain",
+		color = { 0.6, 0.4, 1 } },        -- shadow violet
+	warlock = { proc = "nightfall", name = "Nightfall", cap = 2, dot = "Corruption",
+		color = { 0.8, 0.38, 0.9 } },     -- warlock magenta-violet
+	paladin = { proc = "art_of_war", name = "The Art of War", cap = 1,
+		color = { 1, 0.8, 0.3 } },        -- holy gold
+	hunter = { proc = "rapid_fire", name = "Rapid Fire", cap = 2, dot = "Serpent Sting",
+		color = { 0.67, 0.83, 0.45 } },   -- hunter green
+	mage = { proc = "hot_streak", name = "Hot Streak", cap = 2, dot = "Ignite",
+		color = { 1, 0.5, 0.12 } },       -- fire orange
 	warrior = { dot = "Rend" },
 	rogue = { dot = "Rupture" },
 	shaman = { dot = "Flame Shock" },
@@ -600,6 +605,12 @@ local function DrawFocus(now, w, y)
 			fill = 1;
 		end
 		ui.bar:SetWidth(math.max(1, 284 * fill));
+		-- the proc's own color, and a dim shade of it for the empty part
+		local c = focus.color;
+		if ( c ) then
+			ui.bar:SetVertexColor(c[1], c[2], c[3], 1);
+			ui.barBack:SetVertexColor(c[1] * 0.3, c[2] * 0.3, c[3] * 0.3, 0.9);
+		end
 		ui.focus:Show(); ui.focusRate:Show(); ui.barBack:Show(); ui.bar:Show();
 		y = y - 26;
 	else

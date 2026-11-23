@@ -4,14 +4,14 @@ A small window for **Azeroth Survivors** that counts your **Shadowy Apparitions*
 
 ## Install
 
-1. On this page, click **Code → Download ZIP**.
-2. Unzip it into your game's `benilla-config\AddOns\` folder. It unpacks as `ApparitionMeter-main`: rename that folder to `ApparitionMeter`. You should end up with:
+1. Download **ApparitionMeter-*version*.zip** from the [latest release](https://github.com/zac-omar/ApparitionMeter/releases/latest).
+2. Unzip it into your game's `benilla-config\AddOns\` folder. It holds the `ApparitionMeter` folder, ready to go. You should end up with:
    ```
    <game folder>\benilla-config\AddOns\ApparitionMeter\ApparitionMeter.toc
    ```
 3. Start a run. If the addon isn't loaded, enable it on the AddOns screen at character select.
 
-To update, delete the old `ApparitionMeter` folder and put the new one in its place. Your settings are kept.
+To update, delete the old `ApparitionMeter` folder and unzip the new release in its place. Your settings are kept. Using **Code → Download ZIP** instead? That unpacks as `ApparitionMeter-main`: rename the folder to `ApparitionMeter`.
 
 ## What it shows
 

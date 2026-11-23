@@ -29,14 +29,47 @@ Coming from Apparition Meter? Delete the old `ApparitionMeter` folder.
 | **dmg** | Its share of your damage, from the damage meter |
 
 - **The most active sources come first.** A source that only does damage over time (a burn or a bleed) shows its ticks a second instead.
-- **Your own spells aren't listed;** `/ca own` adds them.
+- **Your own spells aren't listed;** a setting adds them.
 - **The bottom line** counts your procs this run.
 - **Paused time** (level-up choices, menus) doesn't count, so it doesn't drag the rates down.
+
+**Your class's block** sits on top:
+
+| Class | What it shows |
+|---|---|
+| Priest | Shadowy Apparitions, with a bar toward 2 a second |
+| Warlock | Nightfall, with a bar toward 2 a second |
+| Paladin | The Art of War, with a bar toward 1 a second |
+| Hunter | Rapid Fire, with a bar toward 2 a second |
+| Mage | Hot Streak, with a bar toward 2 a second |
+
+- **Without that talent** (or as another class), the block shows your busiest proc instead.
+- **Under it:** your main damage-over-time spell's ticks a second, such as Shadow Word: Pain, Corruption or Serpent Sting.
+
+## Settings and the minimap button
+
+Open the settings with the **minimap button**, `/ca`, or a **right-click on the window**. You can:
+- show the window or lock it in place;
+- show or hide your class's block;
+- list your own spells too;
+- show the minimap button;
+- set how many seconds the rates cover and how many sources are listed;
+- set how see-through the background is;
+- start the count again, or put the window back in the middle.
+
+The minimap button:
+- **left-click** opens the settings;
+- **right-click** shows or hides the window;
+- **drag** moves it anywhere round the minimap's edge, and it stays where you drop it.
+
+Until you drag it, it finds itself a free spot each time, clear of the damage meter's button, the clock and other addons' buttons.
 
 ## Commands
 
 | Command | What it does |
 |---|---|
+| `/ca` | Open or close the settings |
+| `/ca minimap` | Show or hide the minimap button |
 | `/ca show`, `/ca hide` | Show or hide the window |
 | `/ca lock`, `/ca unlock` | Lock it in place, or let it be dragged |
 | `/ca center` | Put it back in the middle of the screen |

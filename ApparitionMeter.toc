@@ -1,0 +1,6 @@
+## Interface: 11200
+## Title: Apparition Meter
+## Notes: Counts your Shadowy Apparitions procs (free Mind Blasts) and shows how many you get per second. Type /apm for the commands.
+## Version: 0.1.0
+## SavedVariables: ApparitionMeterDB
+ApparitionMeter.lua
